@@ -18,7 +18,7 @@ $(document).ready(function () {
           name: "sizes",
           checked: "true",
           value: size,
-          class: "hidden",
+          class: "hidden"
         })
         .appendTo("#pform");
     }
