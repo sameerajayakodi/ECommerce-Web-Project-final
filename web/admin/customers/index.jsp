@@ -121,7 +121,7 @@
                 <div class="w-[10%] max-md:hidden">Last login</div>
                 <div class="w-[20%] max-md:w-[40%]">Actions</div>
               </div>
-              
+              <div class="flex flex-col gap-1">
               <%
                   
                   if(users.size()>0){
@@ -166,83 +166,13 @@
               no user found
             </div>
             <%}%>
+            </div>
           </div>
       </div>
       </div>
       <jsp:include page="../../WEB-INF/components/adminBottom.jsp" />
       
-      <script>
-        
-      $(document).ready(function () {
-        $(".reset").submit(function (e) {
-          e.preventDefault();
-            var formData = new FormData(this);
-            Swal.fire({
-            title: "Are you sure?",
-            text: "Are you sure you want to reset user password?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, reset it!"
-          }).then((result) => {
-            if (result.isConfirmed) {
-              $.ajax({
-              type: "POST",
-              url: "../../resetPass",
-              data: formData,
-              processData: false,
-              contentType: false,
-              success: function (response) {
-                console.log(response);
-//                alert(response);
-                location.reload();
-              },
-              error: function (xhr, status, error) {
-                console.error(xhr.responseText);
-              },
-            });
-            }
-          });
-            
-          
-        });
-        
-        $(".block").submit(function (e) {
-            e.preventDefault();
-            var formData = new FormData(this);
-            Swal.fire({
-            title: "Are you sure?",
-            text: "Are you sure you want to change user status?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, change it!"
-          }).then((result) => {
-            if (result.isConfirmed) {
-              $.ajax({
-              type: "POST",
-              url: "../../changeUserStatus",
-              data: formData,
-              processData: false,
-              contentType: false,
-              success: function (response) {
-                console.log(response);
-//                alert(response);
-                location.reload();
-              },
-              error: function (xhr, status, error) {
-                console.error(xhr.responseText);
-              },
-            });
-            }
-          });
-            
-          
-        });
-      });
-    </script>
+      <script src="./js/customersMain.js"></script>
       
   </body>
 </html>

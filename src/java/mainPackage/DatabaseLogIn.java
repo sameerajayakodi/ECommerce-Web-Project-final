@@ -15,38 +15,38 @@ import models.*;
 
 public class DatabaseLogIn {
 boolean adminlogin;
-Statement st;
+Connection con;
+    public DatabaseLogIn() {
+        connectToDb();
+    }
 
-//public static void main(String args[])  //static method  
-//{  
-//    getOrder(15);
-//}
+
+
 void connectToDb(){
         String driver ="com.mysql.jdbc.Driver";
         String url = "jdbc:mysql://localhost:3306/shoetopia";
         
         try {
             Class.forName(driver);
-            Connection con = DriverManager.getConnection(url,"root",""); 
-            st = con.createStatement();
+            con = DriverManager.getConnection(url,"root",""); 
         } catch (ClassNotFoundException | SQLException ex) {
             Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
         }
 }
 
-public void closeDb(){
-    try{
-        st.close();
-    } catch ( SQLException ex) {
-       System.out.print("statement close error - admin msg");
-       Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
+public void closeDb() {
+        if (con != null) {
+            try {
+                con.close();
+            } catch (SQLException ex) {
+                Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
-}
 
 void basicExecute(String query){
-    connectToDb();
-    try {
-        st.executeUpdate(query);
+    try (Statement stt = con.createStatement()) {
+            stt.executeUpdate(query);
     } catch (SQLException ex) {
         Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
     }
@@ -55,9 +55,7 @@ void basicExecute(String query){
     
     
     public int signUp(String email, String password ) {
-        connectToDb();
-    try {
-        ResultSet rs = st.executeQuery("SELECT * FROM `users` WHERE Email = '" + email + "'");
+    try(Statement st = con.createStatement();ResultSet rs = st.executeQuery("SELECT * FROM `users` WHERE Email = '" + email + "'")) {
         if(!rs.next()){
             basicExecute("INSERT INTO `users`(`Email`, `Password` , `status`) VALUES  ('" + email + "','" + password + "', 1)");
             return 1;
@@ -71,12 +69,11 @@ void basicExecute(String query){
     
     
     public User signIn(String email, String password) {
-            connectToDb();
             String Query ="SELECT * FROM `users` WHERE Email = '" + email + "'";
             User user = new User(-1,"null");
-            try {
+            try(Statement st = con.createStatement();ResultSet resultSet = st.executeQuery(Query)) {
                 String passwordc;
-                ResultSet resultSet= st.executeQuery(Query);
+                
                 if (resultSet.next()) {
                     passwordc = resultSet.getString("Password");
                     if(resultSet.getInt(10)==0){
@@ -107,10 +104,9 @@ void basicExecute(String query){
     }
     
     public boolean adminSignIn(String email, String password) {
-        connectToDb();
             String Query ="SELECT `Id`, `Email`, `Password` FROM `admin` WHERE Email = '" + email + "'";
-            try {
-                ResultSet resultSet= st.executeQuery(Query);
+            try(Statement st = con.createStatement();ResultSet resultSet = st.executeQuery(Query)) {
+               
                 if (resultSet.next()) {
                     if(password.equals(resultSet.getString("Password"))){
                         return true;
@@ -125,9 +121,20 @@ void basicExecute(String query){
         return false;    
     }
      
-     public void addProduct(String name, String description ,String  brand ,int price ,int discount ,int type, String img1,String img2,String img3,String img4) {
+    public int addProduct(String name, String description ,String  brand ,int price ,int discount ,int type, String img1,String img2,String img3,String img4) {
         String query="INSERT INTO `products`(`name`, `description`, `brand`, `price`, `discount`, `type`, `availability`, `img01`, `img02`, `img03`, `img04`) VALUES ('"+Tools.convertToSQL(name)+"','"+Tools.convertToSQL(description)+"','"+brand+"',"+price+","+discount+","+type+",1,'"+img1+"','"+img2+"','"+img3+"','"+img4+"')";
         basicExecute(query);
+        String Query ="SELECT `Id` FROM `products` WHERE name = '"+name+"' ORDER BY Id DESC";
+            int pid=-1;
+            try(Statement st = con.createStatement();ResultSet resultSet = st.executeQuery(Query)) {
+                
+                if (resultSet.next()) {
+                pid=resultSet.getInt("id");
+                }
+            } catch (SQLException ex) {
+                Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            return pid;
     }
      
     public void productDetails(String pid, String name, String description ,String  brand ,String price ,String discount ,String type) {
@@ -149,30 +156,12 @@ void basicExecute(String query){
     public void removeColor(String id){
           basicExecute("DELETE FROM `colors` WHERE cid="+id+";");
     }
-    
-    
-      public int getpid(String name) {
-          connectToDb();
-            String Query ="SELECT `Id` FROM `products` WHERE name = '"+name+"'";
-            int pid=-1;
-            try {
-                ResultSet resultSet= st.executeQuery(Query);
-                if (resultSet.next()) {
-                pid=resultSet.getInt("id");
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(DatabaseLogIn.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            return pid;
-    }
    
     public ArrayList<Product> getAllProducts(String where) {
-            connectToDb();
             String Query ="SELECT * FROM `products` "+where;
             ArrayList<Product> pl = new ArrayList<>();
             
-            try {
-                ResultSet rs= st.executeQuery(Query);
+            try (Statement st = con.createStatement();ResultSet rs = st.executeQuery(Query)) {
                 while(rs.next()){
 //                    Product p = new Product(rs.getInt("id"),rs.getString("name"),Tools.reversToText(rs.getString("description")),rs.getString("brand"),rs.getInt("price"),rs.getInt("discount"),rs.getInt("type"),rs.getInt("availability"),rs.getString("img01"),rs.getString("img02"),rs.getString("img03"),rs.getString("img04"));
                     pl.add(getProduct(rs.getString("id")));
@@ -189,9 +178,8 @@ void basicExecute(String query){
       }
       
       public Product getProduct(String id){
-          connectToDb();
           String query ="SELECT * FROM `products` WHERE Id="+id+";";
-          try {
+          try (Statement st = con.createStatement()){
                 ResultSet rs= st.executeQuery(query);
                 if (rs.next()) {
                     Product product = new Product(rs.getInt("id"),Tools.reversToText(rs.getString("name")),Tools.reversToText(rs.getString("description")),rs.getString("brand"),rs.getInt("price"),rs.getInt("discount"),rs.getInt("type"),rs.getInt("availability"),rs.getString("img01"),rs.getString("img02"),rs.getString("img03"),rs.getString("img04"));
@@ -226,8 +214,7 @@ void basicExecute(String query){
       
       public String[] getColorSize(int c , int s){
           String[] result = new String[2];
-          connectToDb();
-          try {
+          try(Statement st = con.createStatement()) {
               ResultSet crs = st.executeQuery("SELECT * FROM colors WHERE cid="+c);
               if(crs.next()){
                   result[0] = crs.getString("ccode");
@@ -253,7 +240,7 @@ void basicExecute(String query){
         Timestamp time = new Timestamp(date.getTime());
         basicExecute("INSERT INTO orders (uid, name, email, phone, address, note, status, date) VALUES ("+uid+", '"+name+"', '"+email+"', '"+phone+"', '"+address+"', '"+note+"', 1, '"+time+"')");
         
-        try {
+        try (Statement st = con.createStatement()){
                ResultSet rs = st.executeQuery("SELECT * FROM orders WHERE uid="+uid+" ORDER BY oid DESC");
                rs.next();
                int oid = rs.getInt("oid");
@@ -279,8 +266,7 @@ void basicExecute(String query){
     
     
  public Order getOrder(int id){
-        connectToDb();
-        try{
+        try(Statement st = con.createStatement()){
             ResultSet rs = st.executeQuery("SELECT * FROM orders WHERE oid="+id+";");
             
             if(rs.next()){
@@ -310,7 +296,6 @@ void basicExecute(String query){
         return null;
     }
  public ArrayList<Order> getOrders(int type,String uid){
-        connectToDb();
         String query;
         if(type==0){
             query = "SELECT * FROM orders WHERE uid="+uid+" ORDER BY oid DESC";
@@ -322,7 +307,7 @@ void basicExecute(String query){
         else{
             query = "SELECT a.oid FROM activity a JOIN ( SELECT oid, MAX(date) AS latest_date, MAX(id) AS latest_id FROM activity GROUP BY oid ) latest_activity ON a.oid = latest_activity.oid AND a.date = latest_activity.latest_date AND a.id = latest_activity.latest_id WHERE status="+type+" ORDER BY oid DESC";
         }
-        try{
+        try(Statement st = con.createStatement()){
             ResultSet rs = st.executeQuery(query);
             ArrayList<Order> orders = new ArrayList<Order>();
             while(rs.next()){
@@ -355,10 +340,9 @@ void basicExecute(String query){
  }
  
    public String getPasswd(int id) {
-          connectToDb();
             String Query ="SELECT PASSWORD FROM `users` WHERE Id="+id+"";
             String passworddb = null;
-            try {
+            try (Statement st = con.createStatement()){
                 ResultSet resultSet= st.executeQuery(Query);
                 if (resultSet.next()) {
                 passworddb=resultSet.getString("Password");
@@ -371,8 +355,7 @@ void basicExecute(String query){
       
 
  public boolean isExistWishlist(int uid,int pid){
-     connectToDb();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM wishlist WHERE uid="+uid+" AND pid="+pid);
          if(rs.next()){
              return true;
@@ -392,9 +375,8 @@ void basicExecute(String query){
  }
  
  public ArrayList<Product> getWishlist(int uid){
-     connectToDb();
      ArrayList<Product> products = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM wishlist WHERE uid="+uid);
          
          while(rs.next()){
@@ -410,9 +392,8 @@ void basicExecute(String query){
 
  //Retrive DATA USING BRAND
  public ArrayList<Product> ProductsByBrand(String brand){
-     connectToDb();
      ArrayList<Product> products = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM products WHERE brand='"+brand+"'");
          
          while(rs.next()){
@@ -425,8 +406,7 @@ void basicExecute(String query){
  }
  
  public User getUser(String id){
-     connectToDb();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM users WHERE Id="+id);
          if(rs.next()){
              return new User(rs.getInt(1),rs.getString(2),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),rs.getTimestamp(8),rs.getTimestamp(9),rs.getInt(10));
@@ -442,9 +422,8 @@ void basicExecute(String query){
      if(a!=2){
          query = "SELECT * FROM users WHERE status="+a;
      }
-     connectToDb();
      ArrayList<User> users = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery(query);
          while(rs.next()){
             users.add(new User(rs.getInt(1),rs.getString(2),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),rs.getTimestamp(8),rs.getTimestamp(9),rs.getInt(10)));
@@ -463,8 +442,7 @@ void basicExecute(String query){
  }
  
  public void changeUserStatus(String id){
-     connectToDb();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM users WHERE Id="+id);
          if(rs.next()){
             if(rs.getInt(10)==1){
@@ -481,8 +459,7 @@ void basicExecute(String query){
  
  public ArrayList<Address> getAddresses(String id){
      ArrayList<Address> addr = new ArrayList<>();
-     connectToDb();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM abook WHERE uid="+id);
          while(rs.next()){
              addr.add(new Address(rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9)));
@@ -495,8 +472,7 @@ void basicExecute(String query){
  }
  
  public void addview(int uid,int pid){
-     connectToDb();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM viewcount WHERE uid="+uid+" AND pid="+pid);
          if(rs.next()){
              basicExecute("UPDATE viewcount SET count="+(rs.getInt(4)+1)+" WHERE vid="+rs.getInt(1));
@@ -510,9 +486,8 @@ void basicExecute(String query){
  }
  
  public ArrayList<Product> getUserViewed(String uid){
-     connectToDb();
      ArrayList<Product> list = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
          ResultSet rs = st.executeQuery("SELECT * FROM viewcount WHERE uid="+uid+" LIMIT 3");
          int i =0;
          while(rs.next()){
@@ -528,9 +503,8 @@ void basicExecute(String query){
  }
  
  public String[] getAllCounts(){
-    connectToDb();
     String[] counts = {"000","000","000"};
-    try{
+    try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM products), (SELECT COUNT(*) FROM users);");
         rs.next();
         counts[0] = Tools.digitFormat(rs.getInt(1));
@@ -544,9 +518,8 @@ void basicExecute(String query){
  }
  
  public double[] getOrdersCategoryCount(){
-    connectToDb();
     double[] counts = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
-    try{
+    try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("WITH last_records AS (SELECT a.* FROM activity a JOIN (SELECT oid, MAX(date) AS latest_date, MAX(id) AS latest_id FROM activity GROUP BY oid ) latest ON a.oid = latest.oid AND a.date = latest.latest_date AND a.id = latest.latest_id) SELECT COUNT(CASE WHEN status = 1 THEN 1 END) AS status_1,COUNT(CASE WHEN status = 2 THEN 1 END) AS status_2, COUNT(CASE WHEN status = 3 THEN 1 END) AS status_3,COUNT(CASE WHEN status = 4 THEN 1 END) AS status_4,COUNT(CASE WHEN status = 5 THEN 1 END) AS status_5,COUNT(CASE WHEN status = 6 THEN 1 END) AS status_6,COUNT(CASE WHEN status = 7 THEN 1 END) AS status_7,COUNT(*) AS total FROM last_records;");
         rs.next();
         for(int i=0;i<counts.length;i++){
@@ -561,7 +534,7 @@ void basicExecute(String query){
  
  public ArrayList<Product> getHighestSold(){
      ArrayList<Product> pr = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("WITH last_order_status AS (SELECT a.oid, a.date, a.status FROM activity a JOIN (SELECT oid, MAX(date) AS latest_date, MAX(id) AS latest_id FROM activity GROUP BY oid) latest ON a.oid = latest.oid AND a.date = latest.latest_date AND a.id = latest.latest_id) SELECT i.pid, SUM(i.quantity) AS total FROM items i JOIN last_order_status los ON i.oid = los.oid WHERE los.status = 4 AND i.pid!='null' GROUP BY i.pid ORDER BY total DESC LIMIT 3;");
         int i=0;
         while(rs.next()){
@@ -578,7 +551,7 @@ void basicExecute(String query){
  
   public ArrayList<Product> getHighestViewed(){
      ArrayList<Product> pr = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT pid,SUM(count) as counts FROM `viewcount` GROUP BY pid ORDER BY counts DESC LIMIT 3;");
         int i=0;
         while(rs.next()){
@@ -596,7 +569,7 @@ void basicExecute(String query){
   
   public String getWeekOrders(int a){
       ArrayList<Integer> week = new ArrayList<>();
-      try{
+      try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 6 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 5 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 4 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 3 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 2 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE - INTERVAL 1 DAY THEN 1 END),COUNT(CASE WHEN status = "+a+" AND DATE(date) = CURRENT_DATE THEN 1 END) FROM activity WHERE date >= CURRENT_DATE - INTERVAL 7 DAY;");
         rs.next();
         for(int i=1;i<=7;i++){
@@ -612,7 +585,7 @@ void basicExecute(String query){
   public String getWeekSales(){
      double a=0;
      ArrayList<Order> orders = new ArrayList<>();
-     try{
+     try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("WITH last_order_status AS ( SELECT a.oid, a.date, a.status FROM activity a JOIN ( SELECT oid, MAX(date) AS latest_date, MAX(id) AS latest_id FROM activity WHERE date >= CURRENT_DATE - INTERVAL 7 DAY GROUP BY oid ) latest ON a.oid = latest.oid AND a.date = latest.latest_date AND a.id = latest.latest_id ) SELECT oid FROM last_order_status WHERE status = 4;");
         while(rs.next()){
             orders.add(getOrder(rs.getInt(1)));
@@ -633,9 +606,8 @@ void basicExecute(String query){
   }
  
   public ArrayList<String> getAllColors(){
-      connectToDb();
       ArrayList<String> list = new ArrayList<>();
-      try{
+      try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT ccode FROM `colors` GROUP BY ccode;");
         while(rs.next()){
             list.add(rs.getString(1));
@@ -647,9 +619,8 @@ void basicExecute(String query){
      return list;
   }
   public ArrayList<String> getAllBrands(){
-      connectToDb();
       ArrayList<String> list = new ArrayList<>();
-      try{
+      try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT brand FROM `products` GROUP BY brand;");
         while(rs.next()){
             list.add(rs.getString(1));
@@ -661,9 +632,8 @@ void basicExecute(String query){
      return list;
   }
   public ArrayList<String> getAllSizes(){
-      connectToDb();
       ArrayList<String> list = new ArrayList<>();
-      try{
+      try(Statement st = con.createStatement()){
         ResultSet rs = st.executeQuery("SELECT size FROM `sizes` GROUP BY size;");
         while(rs.next()){
             list.add(rs.getString(1));
